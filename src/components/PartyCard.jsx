@@ -1,16 +1,55 @@
 import React from "react";
-import { CalendarClock, CheckCircle2, Ban } from "lucide-react";
+import { CalendarClock, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function PartyCard({ item, busyId, onSchedule, onMatched, onClosed }) {
+function normalizeWeekday(raw) {
+  // Safer fallback: unknown/invalid strings are treated as blank => show "NoWeekly".
+  const s = String(raw || "").trim().toUpperCase();
+  if (!s) return "";
+
+  const cleaned = s.replace(/[^A-Z]/g, "");
+  const map = {
+    MON: "MONDAY",
+    MONDAY: "MONDAY",
+    TUE: "TUESDAY",
+    TUES: "TUESDAY",
+    TUESDAY: "TUESDAY",
+    WED: "WEDNESDAY",
+    WEDNESDAY: "WEDNESDAY",
+    THU: "THURSDAY",
+    THUR: "THURSDAY",
+    THURS: "THURSDAY",
+    THURSDAY: "THURSDAY",
+    FRI: "FRIDAY",
+    FRIDAY: "FRIDAY",
+    SAT: "SATURDAY",
+    SATURDAY: "SATURDAY",
+  };
+
+  return map[cleaned] || "";
+}
+
+export default function PartyCard({ item, busyId, onSchedule, onMatched }) {
   const { party, dateDisplay, dateISO } = item;
   const busySchedule = busyId === party + "|schedule";
   const busyMatched = busyId === party + "|matched";
-  const busyClosed = busyId === party + "|closed";
+  const busyAny = busySchedule || busyMatched;
+
+  const weeklyRaw =
+    item?.weeklyDay ??
+    item?.weeklyDayRule ??
+    item?.weekly ??
+    item?.weekday ??
+    item?.dayRule ??
+    item?.colF ??
+    "";
+  const weekday = normalizeWeekday(weeklyRaw);
+  const isNoWeekly = !weekday;
 
   return (
     <motion.div
-      className="card"
+      className={"card " + (isNoWeekly ? "noWeekly" : "weekly")}
+      exit={{ opacity: 0, y: 8, scale: 0.98 }}
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
     >
@@ -21,14 +60,17 @@ export default function PartyCard({ item, busyId, onSchedule, onMatched, onClose
             Mark Date in sheet
           </div>
         </div>
-        <div className="datePill">{dateDisplay}</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <div className="datePill">{dateDisplay}</div>
+          {isNoWeekly ? <div className="weeklyBadge">NoWeekly</div> : null}
+        </div>
       </div>
 
       <div className="actions">
         <button
           className="btn"
           onClick={() => onSchedule(party, dateISO)}
-          disabled={busySchedule || busyMatched || busyClosed}
+          disabled={busyAny}
           title="Schedule"
         >
           {busySchedule ? <span className="spinner dark" /> : <CalendarClock size={16} />}
@@ -38,21 +80,11 @@ export default function PartyCard({ item, busyId, onSchedule, onMatched, onClose
         <button
           className="btn success"
           onClick={() => onMatched(party, dateISO)}
-          disabled={busySchedule || busyMatched || busyClosed}
+          disabled={busyAny}
           title="Ledger Matched"
         >
           {busyMatched ? <span className="spinner dark" /> : <CheckCircle2 size={16} />}
           Ledger Matched
-        </button>
-
-        <button
-          className="btn danger"
-          onClick={() => onClosed(party, dateISO)}
-          disabled={busySchedule || busyMatched || busyClosed}
-          title="Business Closed"
-        >
-          {busyClosed ? <span className="spinner dark" /> : <Ban size={16} />}
-          Business Closed
         </button>
       </div>
     </motion.div>
